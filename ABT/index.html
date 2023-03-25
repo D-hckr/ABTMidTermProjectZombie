@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+
+<head>
+  <meta charset="UTF-8">
+  <title>CryptoZombies Mid Term Project</title>
+<link rel="icon" href="favicon.ico">
+  <script language="javascript" type="text/javascript"
+    src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script language="javascript" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.2.7-rc.0/web3.min.js"></script>
+  <script language="javascript" type="text/javascript" src="cryptozombies_abi.js"></script>
+  <style>
+    body {
+        background-color: rgb(39, 145, 206);
+        font-size: 33px;
+        text-align: center;
+    }
+    button {
+        background-color: rgb(32, 5, 5);
+        font-size: 33px;
+        color: aliceblue;
+        font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+    }
+
+    #imgid{
+      border: solid rgb(37, 6, 6) 5px;
+      margin: 30px;
+    }
+    #zombies{
+      color: rgb(255, 9, 9);
+      font-size: 25px;
+    }
+    #txStatus{
+      color: rgb(255, 22, 22);
+      font-size: 25px;
+    }
+</style>
+
+</head>
+
+<body>
+  <div id="txStatus"></div>
+  <button class="showZombieButton">Show Zombies</button>
+  <button class="createzombieButton" >Create Zombie</button>
+  <button class="levelupButton">Level Up</button>
+  <button class="feedOnKittyButton">FeedOnKitty</button>
+  <button class="setckid">Set ID</button>
+  <button class="AttackZombie">Attack</button>
+  <button class="nameChange">ChangeZombieName</button>
+  <div id="zombieimg">
+    <img id="imgid" src="zombie_img.jpg" alt="" height="300px" width="300px">
+  </div>
+  <div id="zombies"></div>
+
+  <script>
+    var cryptoZombies;
+    var userAccount;
+    const showZombieButton = document.querySelector('.showZombieButton');
+    const createzombieButton = document.querySelector('.createzombieButton');
+    const levelupButton = document.querySelector('.levelupButton');
+    const feedOnKittyButton= document.querySelector('.feedOnKittyButton');
+    const setckid= document.querySelector('.setckid');
+    const atkZ=document.querySelector('.AttackZombie')
+    const nameCh=document.querySelector('.nameChange')
+
+
+    function startApp() {
+    
+      //ZombieOwnership contract address 
+      //var cryptoZombiesAddress = "0x9C60b24591dC860bcd1a131Acefe9177bD61c0B8";
+      // Test address
+      var cryptoZombiesAddress = "0x507C8c6B8C25871DA073991f976676D05058846b";
+
+      cryptoZombies = new web3.eth.Contract(cryptoZombiesABI, cryptoZombiesAddress);
+      cryptoZombies.events.Transfer({ filter: { _to: userAccount } })
+        .on("data", function (event) {
+          let data = event.returnValues;
+          getZombiesByOwner(userAccount).then(displayZombies);
+        }).on("error", console.error);
+    }
+
+
+    function displayZombies(ids) {
+      $("#zombies").empty();
+      for (id of ids) {
+
+        getZombieDetails(id)
+          .then(function (zombie) {
+
+          var dna=zombie.dna;
+          dna=Math.floor(dna/1000);
+          document.getElementById("imgid").src="Zombie "+dna%10+".jfif";
+            $("#zombies").append(`<div class="zombie">
+              <ul>
+                <li>Name: ${zombie.name}</li>
+                <li>DNA: ${zombie.dna}</li>
+                <li>Level: ${zombie.level}</li>
+                <li>Wins: ${zombie.winCount}</li>
+                <li>Losses: ${zombie.lossCount}</li>
+                <li>Ready Time: ${zombie.readyTime}</li>
+              </ul>
+            </div>`);
+          });
+      }
+
+    }
+
+    function createRandomZombie(name) {
+
+
+      $("#txStatus").text("Creating new zombie on the blockchain. This may take a while...");
+
+      return cryptoZombies.methods.createRandomZombie(name)
+        .send({ from: userAccount })
+        .on("receipt", function (receipt) {
+          $("#txStatus").text("Successfully created " + name + "!");
+
+          getZombiesByOwner(userAccount).then(displayZombies);
+        })
+        .on("error", function (error) {
+
+          $("#txStatus").text(error);
+        });
+    }
+
+    function attackZombie(zombie1,zombie2){
+      $("#txStatus").text("#Battle is On Going. This may take a while...");
+      console.log("IN Attack Zombie",zombie1,zombie2)
+      return cryptoZombies.methods.attack(zombie1,zombie2)
+      .send({ from: userAccount })
+        .on("receipt", function (receipt) {
+          $("#txStatus").text("Battle Completed");
+          getZombiesByOwner(userAccount).then(displayZombies);
+        })
+        .on("error", function (error) {
+          $("#txStatus").text("error");
+        });
+    }
+    function  feedOnKitty(zombieId, kittyId) {
+
+      $("#txStatus").text("Eating a kitty. This may take a while...");
+      return  cryptoZombies.methods.feedOnKitty(zombieId, kittyId)
+        .send({ from: userAccount })
+        .on("receipt", function (receipt) {
+          $("#txStatus").text("Ate a kitty and spawned a new Zombie!");
+          getZombiesByOwner(userAccount).then(displayZombies);
+        })
+        .on("error", function (error) {
+          $("#txStatus").text(error);
+        });
+    }
+
+    function setKittyContractAddress(addr){
+      console.log(addr)
+      $("#txStatus").text("Setting Address");
+      $("#txStatus").text("ID set successfully");
+      return cryptoZombies.methods.setKittyContractAddress(addr)
+      .send({ from: userAccount })
+        .on("receipt", function (receipt) {
+          $("#txStatus").text("Interface Set!!!");
+        });
+    }
+
+    function levelUp(zombieId) {
+      console.log(zombieId)
+      $("#txStatus").text("Leveling up your zombie...");
+      return cryptoZombies.methods.levelUp(zombieId)
+        .send({ from: userAccount, value: web3.utils.toWei("0.000001", "ether") })
+        .on("receipt", function (receipt) {
+          $("#txStatus").text("Power overwhelming! Zombie successfully leveled up");
+        })
+        .on("error", function (error) {
+          $("#txStatus").text(error);
+        });
+    }
+    // This is the code for name change, added other parts, need to look on the logic below, fix the error
+    /*modifier aboveLevel(uint _level, uint _zombieId) {
+    require(zombies[_zombieId].level >= _level);
+  }
+    function changeName(uint zombieId, string newName) aboveLevel(2, _zombieId){
+    zombies[_zombieId].name = _newName;
+  }*/
+ 
+
+    function getZombieDetails(id) {
+      return cryptoZombies.methods.zombies(id).call()
+    }
+
+    function zombieToOwner(id) {
+      return cryptoZombies.methods.zombieToOwner(id).call()
+    }
+
+    function getZombiesByOwner(owner) {
+      return cryptoZombies.methods.getZombiesByOwner(owner).call()
+    }
+
+    window.addEventListener('load', async () => {
+    // Modern dapp browsers...
+    if (window.ethereum) {
+        window.web3 = new Web3(ethereum);
+        try {
+            // Request account access if needed
+            const accounts = await ethereum.enable();
+            // Acccounts now exposed
+            userAccount = accounts[0];
+            startApp()
+        } catch (error) {
+            // User denied account access...
+        }
+    }
+    // Legacy dapp browsers...
+    else if (window.web3) {
+        window.web3 = new Web3(web3.currentProvider);
+        // Acccounts always exposed
+        userAccount = web3.eth.accounts[0];
+        startApp()
+    }
+    // Non-dapp browsers...
+    else {
+        console.log('Non-Ethereum browser detected. You should consider trying MetaMask!');
+    }
+   });
+  
+   
+   ethereum.on('accountsChanged', (accounts) => {
+       window.location.reload();
+   });
+
+   ethereum.on('chainChanged', (chainId) => {
+       window.location.reload(); 
+   });  
+
+ 
+    createzombieButton.addEventListener('click', () => {
+      let name= window.prompt("Enter Your Zombie Name");
+      createRandomZombie(name); 
+
+    });
+
+    nameCh.addEventListener('click', () => {
+      let newName= window.prompt("Enter Your Zombie's New Name");
+      changeName(id,newName); 
+
+    });
+
+    showZombieButton.addEventListener('click', async () => {
+      let zombie= await getZombiesByOwner(userAccount)
+      displayZombies(zombie)
+
+    });
+
+    levelupButton.addEventListener('click', () => {
+      getZombiesByOwner(userAccount)
+            .then(levelUp);
+
+    });
+
+    feedOnKittyButton.addEventListener('click', async ()  => {
+      let zombie1= await getZombiesByOwner(userAccount)
+      let zombie2=578397;
+      feedOnKitty(zombie1,zombie2);
+    });
+
+    setckid.addEventListener('click', async ()=>{
+      var adxd=window.prompt("Enter The Kitty Contract Address");
+      setKittyContractAddress(adxd);
+    })
+
+    atkZ.addEventListener('click', async ()  => {
+      console.log("Attacking in progress")
+      let zombie1= await getZombiesByOwner(userAccount)
+      var TargetAddress= window.prompt("Enter the Enemy address ")
+      console.log(TargetAddress)
+      let zombie2=await getZombiesByOwner(TargetAddress)
+      console.log(zombie2,zombie1)
+      attackZombie(zombie1,zombie2);
+    });
+
+    
+
+
+
+  </script>
+</body>
+
+</html>
