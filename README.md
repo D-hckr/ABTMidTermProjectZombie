@@ -31,7 +31,7 @@
 
 
 
-# Features which as in progress, the logic is implemented in the code but we are trying to debug the issues
+# Features which are in progress, the logic is implemented in the code but we are trying to debug the issues
 # Note: It worked twice when we checked but not able to reproduce every time
 ## 7. Feeding the kitty to the zombie
 ## 8. Attacking another zombie by giving the address of the other zombie
